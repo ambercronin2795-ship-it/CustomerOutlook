@@ -1,0 +1,23 @@
+// Formula engine with PMT support
+function numberOrZero(v: any) {
+  const n = typeof v === "number" ? v : parseFloat(String(v).replace(/,/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+export function evalFormula(expr: string, vars: Record<string, any>) {
+  if (!expr) return "";
+  const safe = expr.replace(/[^\w\d_+\-*/().,\s]/g, ""); // allow commas for function args
+  const PMT = (aprPercent: number, n: number, pv: number) => {
+    const i = Number(aprPercent || 0) / 100 / 12;
+    const N = Number(n || 0);
+    const P = numberOrZero(pv);
+    if (!i) return N ? -(P / N) : 0; // 0% APR
+    return -(P * i * Math.pow(1 + i, N)) / (Math.pow(1 + i, N) - 1);
+  };
+  const keys = Object.keys(vars);
+  const vals = keys.map((k) => numberOrZero(vars[k]));
+  // eslint-disable-next-line no-new-func
+  const fn = new Function(...[...keys, "PMT"], `return (${safe});`);
+  const out = fn(...[...vals, PMT]);
+  return Number.isFinite(out) ? out : "";
+}
